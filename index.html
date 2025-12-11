@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LED Toggle</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --accent: #22c55e;
+      --accent-dark: #16a34a;
+      --accent-glow: rgba(34, 197, 94, 0.35);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 20% 20%, #111827 0, #0b1224 45%, #080d1a 100%);
+      color: var(--text);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      padding: 24px;
+    }
+
+    .panel {
+      background: linear-gradient(145deg, #0f1628, #0a0f1c);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      padding: 32px 28px;
+      width: min(420px, 100%);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    p.desc {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .toggle {
+      position: relative;
+      width: 100%;
+      padding: 32px;
+      border: none;
+      border-radius: 18px;
+      background: linear-gradient(160deg, #1f2a44, #152038);
+      color: #fff;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+      box-shadow:
+        0 14px 30px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      outline: 0;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .toggle::after {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.1));
+      pointer-events: none;
+      transition: opacity 120ms ease;
+    }
+
+    .toggle:active {
+      transform: translateY(2px) scale(0.995);
+      box-shadow:
+        0 10px 20px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      filter: brightness(1.03);
+    }
+
+    .toggle.active {
+      background: linear-gradient(160deg, var(--accent), var(--accent-dark));
+      box-shadow:
+        0 16px 36px var(--accent-glow),
+        0 10px 26px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    .status {
+      margin-top: 20px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.4px;
+      transition: color 120ms ease;
+    }
+
+    .status.high { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>LED Control</h1>
+    <p class="desc">Hold to set LED HIGH. Release to set LED LOW.</p>
+    <button id="toggle" class="toggle" aria-pressed="false">Toggle</button>
+    <div id="status" class="status">LED LOW</div>
+  </div>
+
+  <script>
+    (() => {
+      const toggle = document.getElementById("toggle");
+      const statusEl = document.getElementById("status");
+      const HIGH_URL = "http://192.168.4.1/led?state=HIGH";
+      const LOW_URL = "http://192.168.4.1/led?state=LOW";
+
+      const setStatus = (isHigh) => {
+        statusEl.textContent = isHigh ? "LED HIGH" : "LED LOW";
+        statusEl.classList.toggle("high", isHigh);
+        toggle.classList.toggle("active", isHigh);
+        toggle.setAttribute("aria-pressed", String(isHigh));
+      };
+
+      const send = async (url) => {
+        try {
+          await fetch(url, { method: "GET", mode: "no-cors" });
+        } catch (err) {
+          // Swallow errors; device might be offline. UI still updates.
+          console.warn("LED request failed:", err);
+        }
+      };
+
+      let isDown = false;
+
+      const onPress = (ev) => {
+        ev.preventDefault();
+        if (isDown) return;
+        isDown = true;
+        setStatus(true);
+        send(HIGH_URL);
+      };
+
+      const onRelease = (ev) => {
+        if (!isDown) return;
+        ev.preventDefault();
+        isDown = false;
+        setStatus(false);
+        send(LOW_URL);
+      };
+
+      // Use pointer events for unified mouse/touch support
+      toggle.addEventListener("pointerdown", onPress);
+      window.addEventListener("pointerup", onRelease);
+      window.addEventListener("pointercancel", onRelease);
+      window.addEventListener("blur", onRelease); // safety if tab loses focus
+    })();
+  </script>
+</body>
+</html>
